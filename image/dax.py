@@ -51,11 +51,7 @@ class Dax_Processor():
         splitted_ims = [raw_image[_s:_s+self.image_size[0]*num_colors:num_colors].copy() for _s in _ch_starts]
         ### save attributes
         for _ch, _im in zip(self.channels, splitted_ims):
-            if self.microscope_params is not None:
-                _correct_image = correct_image3D_by_microscope_param(_im, self.microscope_params)
-                setattr(self, f"im_{_ch}", _correct_image)
-            else:
-                setattr(self, f"im_{_ch}", _im)
+            setattr(self, f"im_{_ch}", _im)
         
         return
     
@@ -110,7 +106,7 @@ class Dax_Processor():
                     print(f'-----Finished bleedthrough corrections')
 
         # chromatic correction
-        if 'chromatic' in self.correction_dict.keys():
+        if 'chromatic_image' in self.correction_dict.keys():
             chromatic_dict = self.correction_dict['chromatic']
             for ch in sel_channels:
                 if ch in chromatic_dict.keys():
@@ -119,4 +115,12 @@ class Dax_Processor():
                     setattr(self, f'im_{ch}', warped_im)
                     if self.verbose:
                         print(f'-----Finished chromatic aberration correction for channel {ch}')
+        
+        # correct by microscope parameters
+        if self.microscope_params is not None:
+            for ch in sel_channels:
+                _correct_image = correct_image3D_by_microscope_param(getattr(self, f'im_{ch}'), self.microscope_params)
+                setattr(self, f"im_{ch}", _correct_image)
+                print(f'-----Finished microscope correction for channel {ch}')
+        
         return

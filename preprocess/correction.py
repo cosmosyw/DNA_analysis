@@ -8,7 +8,7 @@ def correct_illumination(im, file_path, rescale=True):
     _dtype = im.dtype
     _min,_max = np.iinfo(_dtype).min, np.iinfo(_dtype).max
     # apply corr
-    im = im.astype(float) / illumination_correction[np.newaxis,:]
+    im = im.astype(np.float32) / illumination_correction[np.newaxis,:]
     if rescale: 
         im = (im - np.min(im)) / (np.max(im) - np.min(im)) * _max + _min
     im = np.clip(im, a_min=_min, a_max=_max)
@@ -46,12 +46,13 @@ def correct_chromatic_aberration(im, chromatic_file_path):
     _coords = np.stack(_coords).transpose((0, 2, 1, 3))
     # warp coordinates
     _coords = _coords + chromatic_npy
+    del chromatic_npy
     # map coordinates
     warped_im = map_coordinates(im, 
                                 _coords.reshape(_coords.shape[0], -1),
                                 mode='nearest').astype(im.dtype)
     warped_im = warped_im.reshape(im.shape)
-
+    del _coords
     return warped_im
 
 def correct_bleedthrough(ims, bleedthrough_file, rescale=True):

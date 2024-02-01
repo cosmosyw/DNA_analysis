@@ -113,8 +113,9 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
     # load DNA mask and calculate the expected number of pots
     dna_dapi_mask = np.load(segment_file)
     num_cells = len(np.unique(dna_dapi_mask)) - 1
-    max_num_seed = int(num_cells*parameters['expected_spots_per_cell']*4)
-    min_num_seed = int(num_cells*parameters['expected_spots_per_cell']*2)
+    max_num_seed = int(num_cells*parameters['expected_spots_per_cell']*3)
+    min_num_seed = int(num_cells*parameters['expected_spots_per_cell']*1)
+    print(f'-Expected {min_num_seed} number of spots for {fov}')
 
     ### iterate through the image files
     for image_file, round_name in zip(image_files, image_rounds):
@@ -166,7 +167,10 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
         else:
             print(f'---No drift calculation for reference round', flush=True)
             drift, drift_flag = [0,0,0], 'Reference image'
-
+         # shift the segment
+        from scipy.ndimage import shift
+        shifted_segment = shift(dna_dapi_mask, -np.array(drift), mode='constant', cval=0)
+        
         #### start spot finding
         print(f'---Start spot finding for round {round_name}', flush=True)
         for color, bit in color_usage.items():
@@ -179,19 +183,17 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
                             print(f'---Spot information for bit {bit} already exists.', flush=True)
                             continue
 
-            ### use color to find images: 
-            im = getattr(dax_cls, f'im_{color}')
-            
             ### generate seed
-            seeds = fitting.get_seeds(im, max_num_seeds=max_num_seed, 
+            seeds = fitting.get_seeds(getattr(dax_cls, f'im_{color}'), max_num_seeds=max_num_seed, 
                                       th_seed=parameters['seed_threshold'][color], 
                                       min_dynamic_seeds=min_num_seed,
-                                      segment=dna_dapi_mask)
+                                      segment=shifted_segment)
+            
             print(f"-----{len(seeds)} seeded with th={parameters['seed_threshold'][color]} in channel {color} for round {round_name}", flush=True)
             
             if len(seeds)>0:
                 ### fitting
-                fitter = fitting.iter_fit_seed_points(im, seeds.T)    
+                fitter = fitting.iter_fit_seed_points(getattr(dax_cls, f'im_{color}'), seeds.T)    
                 # fit
                 fitter.firstfit()
                 # check
@@ -201,11 +203,21 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
                 spots = spots[np.sum(np.isnan(spots),axis=1)==0] # remove NaNs
                 # remove all boundary points
                 _kept_flags = (spots[:,1:4] > np.zeros(3)).all(1) \
-                    * (spots[:, 1:4] < np.array(np.shape(im))).all(1)
+                    * (spots[:, 1:4] < np.array(imageSize)).all(1)
                 spots = spots[np.where(_kept_flags)[0]]
                 print(f"-----{len(spots)} found in channel {color} in round {round_name}", flush=True)
                 
-                ### shift the spots
+                ### generate shift function by chromatic abberation
+                if ('chromatic_constant' in correction_dict.keys()):
+                    if str(color) in correction_dict['chromatic_constant'].keys():
+                        chromatic_function = alignment.generate_chromatic_function(correction_dict['chromatic_constant'][str(color)])
+                        # need to get the coordinates that reverse by microscope parameters
+                        microscope_translated_spots = alignment.reverse_microscope_translation_spot(spots, microscope_dict)
+                        new_spots = chromatic_function(microscope_translated_spots)
+                        # change back by microscope parameters
+                        spots = alignment.microscope_translation_spot(new_spots, microscope_dict)
+                
+                # apply drift
                 spots = alignment.shift_spots(spots, drift)
             else:
                 spots = []
@@ -219,7 +231,9 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
                 bit_info.create_dataset('drift_flag', data=drift_flag)
                 bit_info.create_dataset('spots', data=spots)
                 print(f"---Spots for bit {bit} stored in hdf5 file", flush=True)
-            
+        
+        # release RAM
+        del shifted_segment    
         print(f'-Finish analyzing images for round {round_name}.\n', flush=True)
     
     return

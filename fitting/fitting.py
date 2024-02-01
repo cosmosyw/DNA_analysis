@@ -72,7 +72,7 @@ def get_seeds(im, max_num_seeds=None, th_seed=1000,
     _local_maximum_mask = (_max_ft & _min_ft).astype(bool)
     if segment is not None:
         segment_mask = segment>0
-        dilated_mask = [binary_dilation(ly, structure=np.ones((19,19))) for ly in segment_mask]
+        dilated_mask = [binary_dilation(ly, structure=np.ones((29,29))) for ly in segment_mask]
         dilated_mask = np.array(dilated_mask)
         _local_maximum_mask = _local_maximum_mask*dilated_mask
         del segment_mask
