@@ -216,6 +216,9 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
                         new_spots = chromatic_function(microscope_translated_spots)
                         # change back by microscope parameters
                         spots = alignment.microscope_translation_spot(new_spots, microscope_dict)
+                        # release RAM
+                        del microscope_translated_spots
+                        del new_spots
                 
                 # apply drift
                 spots = alignment.shift_spots(spots, drift)
@@ -231,7 +234,10 @@ def SpotDNA_mp(data_folders, analysis_folder, segment_file, microscope_file, cor
                 bit_info.create_dataset('drift_flag', data=drift_flag)
                 bit_info.create_dataset('spots', data=spots)
                 print(f"---Spots for bit {bit} stored in hdf5 file", flush=True)
-        
+            # release RAM
+            del seeds
+            del spots
+
         # release RAM
         del shifted_segment    
         print(f'-Finish analyzing images for round {round_name}.\n', flush=True)
