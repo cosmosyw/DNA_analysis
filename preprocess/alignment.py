@@ -237,7 +237,7 @@ def align_image(
     ref_im:np.ndarray, 
     crop_list=None,
     precision_fold=100, 
-    min_good_drifts=3, drift_diff_th=1., drift_pixel_threshold = 150):
+    min_good_drifts=3, drift_diff_th=1., drift_pixel_threshold = 150, z_drift_threshold = 3):
     """Function to align one image by either FFT or spot_finding
         both source and reference images should be corrected
     """
@@ -269,10 +269,8 @@ def align_image(
         # calculate drift with autocorr
         _dft, _error, _phasediff = phase_cross_correlation(_rim, _sim, 
                                                                upsample_factor=precision_fold)
-        # append 
-        if (len(np.where(np.abs(_dft)>drift_pixel_threshold)[0])==0): # drift is usually not more than 150 pixels
-            _drifts.append(_dft)
-        if (len(np.where(_dft==0)[0])<=1): # drift is does not usually have two dim equal to zero
+        # append if the drift calculated pass certain criteria
+        if (len(np.where(np.abs(_dft)>drift_pixel_threshold)[0])==0) & (len(np.where(_dft==0)[0])<=1) & (np.abs(_dft)[0]<z_drift_threshold):
             _drifts.append(_dft) 
 
         # detect variance within existing drifts
@@ -417,7 +415,7 @@ def calculate_translation(reference_im:np.ndarray,
     if verbose:
         print(f"--- drift: {np.round(_drift,2)} pixels")
         
-    return _rot_target_im, ref_to_tar_rotation, _drift
+    return _rot_target_im, ref_to_tar_rotation, _drift, _drift_flag
 
 def warp_3d_image(image, drift, chromatic_profile=None, 
                   warp_order=1, border_mode='constant', 
@@ -455,7 +453,7 @@ def translate_segmentation(dapi_before, dapi_after, before_to_after_rotation, RN
     """ """
     
     # calculate drift
-    _rot_dapi_after, _rot, _dft = calculate_translation(dapi_before, dapi_after, before_to_after_rotation,)
+    _rot_dapi_after, _rot, _dft, _drift_flag = calculate_translation(dapi_before, dapi_after, before_to_after_rotation,)
     # get dimensions
     _dz,_dx,_dy = np.shape(dapi_before)
     _rotation_angle = np.arcsin(_rot[0,1])/math.pi*180
@@ -490,4 +488,4 @@ def translate_segmentation(dapi_before, dapi_after, before_to_after_rotation, RN
     if return_new_dapi:
         return _dft_rot_seg_labels, _rot_dapi_after
     else:
-        return _dft_rot_seg_labels
+        return _dft_rot_seg_labels, _dft, _drift_flag

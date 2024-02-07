@@ -110,4 +110,9 @@ def partition_spots(fov, spot_folder, feature_folder, filtered_segment_folder, o
     df_spot['pixel_z'] = pixel_z
     df_spot['channel'] = df_spot['bit'].apply(lambda x: bit_to_channel[x])
 
+    # filter candidate spots
+    df_spot = df_spot[df_spot['sigma_x']<=3].copy()
+    df_spot = df_spot[df_spot['sigma_y']<=3].copy()
+    df_spot = df_spot[df_spot['sigma_z']<=3].copy()
+
     df_spot.to_csv(output_file, index=False)

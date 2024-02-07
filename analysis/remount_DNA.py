@@ -54,11 +54,18 @@ def get_remounted_DNA_mask(rna_dax_file, dna_dax_file, rna_segment_file,
 
         # generate DNA segment
         print('Start alignment')
-        dna_segment = alignment.translate_segmentation(rna_dapi, dna_dapi, rotation_matrix, label_data)
+        dna_segment, drift, _drift_flag = alignment.translate_segmentation(rna_dapi, dna_dapi, rotation_matrix, label_data)
 
         # save
         print('Save DNA segment')
         np.save(output_file, dna_segment)
+
+        # drift output
+        drift_output = os.path.join(output_folder, output_filename.replace('.npy', '.txt'))
+        with open(drift_output, 'a') as f:
+            f.write(str(drift)+'\n')
+            f.write(_drift_flag)
+        
     else:
         print(f'{output_file} already exists')
 
