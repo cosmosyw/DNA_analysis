@@ -283,10 +283,15 @@ def align_image(
                 _result_flag = 'Optimal alignment'
                 break
     
+    # if no good drift and just one good drift is detected. Do it on the entire image
     if len(_drifts)==0:
-        return [0,0,0], 'Failed alignment'
+        _dft, _error, _phasediff = phase_cross_correlation(ref_im, src_im, 
+                                                               upsample_factor=precision_fold)
+        return _dft, 'Failed alignment'
     elif len(_drifts)==1:
-        return _drifts[0], 'Poor alignment'
+        _dft, _error, _phasediff = phase_cross_correlation(ref_im, src_im, 
+                                                               upsample_factor=precision_fold)
+        return _dft, 'Poor alignment'
 
     if '_updated_mean_dft' not in locals():
         _drifts = np.array(_drifts)
