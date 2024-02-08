@@ -237,7 +237,7 @@ def align_image(
     ref_im:np.ndarray, 
     crop_list=None,
     precision_fold=100, 
-    min_good_drifts=3, drift_diff_th=1., drift_pixel_threshold = 150, z_drift_threshold = 3):
+    min_good_drifts=3, drift_diff_th=1., drift_pixel_threshold = 150, z_drift_threshold = 4):
     """Function to align one image by either FFT or spot_finding
         both source and reference images should be corrected
     """
